@@ -72,6 +72,16 @@ impl<'a> MatrixF2<'a> {
         }
         return Self { n, m, data };
     }
+    /// Construct a fresh identity matrix
+    pub fn identity_half(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
+        assert!([4, 6, 8].contains(n));
+        assert!([4, 6, 8].contains(m));
+        let mut data: u64 = 0;
+        for i in 0..(std::cmp::min(*n, *m) / 2) {
+            data |= 1 << (i * n + i);
+        }
+        return Self { n, m, data };
+    }
 
     pub fn zero(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
         return Self { n, m, data: 0 };
@@ -126,7 +136,7 @@ impl<'a> MatrixF2<'a> {
                     self.data ^= (self.data & COL_MASK_8[i]) >> (self.n * (i - j));
                 }
             }
-            _ => panic!(),
+            _ => panic!("Size {} is not supported!", self.m),
         }
     }
     /// Updates the matrix by left application of a list of CNOT gates (possibly in reverse order)

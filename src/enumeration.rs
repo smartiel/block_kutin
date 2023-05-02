@@ -59,11 +59,6 @@ pub fn enumerate_step_2(topology: &Topology) -> HashMap<u64, Vec<u64>> {
     let mut global_database: HashMap<u64, (i32, u64)> = HashMap::new();
     let mut target_database: HashMap<u64, Vec<u64>> = HashMap::new();
     let all_operators: Vec<Vec<(usize, usize)>> = topology.get_all_operators();
-    println!(
-        "There are {} depth-1 operators for this topology ({} matchings)",
-        all_operators.len(),
-        topology.get_all_matchings().len()
-    );
     let mut initial = MatrixF2::identity(&topology.nvertices, &topology.nvertices);
     let mut depth = 0;
     global_database.insert(initial.cannonical_representation(), (0, 0));
@@ -75,8 +70,6 @@ pub fn enumerate_step_2(topology: &Topology) -> HashMap<u64, Vec<u64>> {
     let mut count: usize = 0;
     loop {
         depth += 1;
-        println!("Enumerating for depth {depth}");
-        println!("There are {} operators of depth {}", queue.len(), depth - 1);
         if queue.is_empty() {
             // This happens if we observed all possible operators (if should never trigger)
             break;
@@ -121,20 +114,13 @@ pub fn enumerate_step_1(topology: &Topology) -> HashMap<u64, Vec<u64>> {
     let mut global_database: HashMap<u64, (i32, u64)> = HashMap::new();
     let mut target_database: HashMap<u64, Vec<u64>> = HashMap::new();
     let all_operators: Vec<Vec<(usize, usize)>> = topology.get_all_operators();
-    println!(
-        "There are {} depth-1 operators for this topology ({} matchings)",
-        all_operators.len(),
-        topology.get_all_matchings().len()
-    );
-    let m = topology.nvertices / 2;
-    let mut initial = MatrixF2::identity(&topology.nvertices, &m);
+    let mut initial = MatrixF2::identity_half(&topology.nvertices, &topology.nvertices);
     let mut depth = 0;
     global_database.insert(initial.cannonical_representation_step1(), (0, 0));
+    target_database.insert(initial.cannonical_representation(), Vec::new());
     let mut queue: Vec<(MatrixF2, u64)> = vec![(initial, 0)];
     loop {
         depth += 1;
-        println!("Enumerating for depth {depth}");
-        println!("There are {} operators of depth {}", queue.len(), depth - 1);
         if queue.is_empty() {
             break;
         }
@@ -184,25 +170,34 @@ pub fn generate_full_database_step_2(
 }
 
 /// Generates the step1 database for a given topology and dumps the resulting database in some file
-pub fn generate_full_database_step_1(
+pub fn generate_full_database(
     topology: &Topology,
-    output_fname: &str,
+    output_fname: &String,
+    step: i32,
 ) -> std::io::Result<()> {
-    let database = enumerate_step_1(topology);
+    let database = if step == 1 {
+        enumerate_step_1(topology)
+    } else {
+        enumerate_step_2(topology)
+    };
     let all_operators = topology.get_all_operators();
     let mut file = File::create(output_fname)?;
     for repr in database.keys() {
         writeln!(
             file,
-            "{} {:?}",
+            "{},{}",
             repr,
             get_circuit_from_repr(
                 &database,
                 &all_operators,
                 repr,
                 topology.nvertices,
-                topology.nvertices / 2
+                topology.nvertices
             )
+            .iter()
+            .map(|(a, b)| format!("({a},{b})"))
+            .collect::<Vec<String>>()
+            .join("")
         )?;
     }
     return Result::Ok(());
