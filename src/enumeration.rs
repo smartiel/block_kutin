@@ -1,8 +1,11 @@
 use super::matrix::MatrixF2;
-use super::operators::Topology;
+use super::topology::Topology;
+use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::{BufRead, BufReader};
 
 fn reconstruct_genealogy(database: &HashMap<u64, (i32, u64)>, repr: &u64) -> Vec<u64> {
     let mut genealogy = Vec::new();
@@ -170,15 +173,17 @@ pub fn generate_full_database_step_2(
 }
 
 /// Generates the step1 database for a given topology and dumps the resulting database in some file
-pub fn generate_full_database(
-    topology: &Topology,
-    output_fname: &String,
+#[pyfunction]
+pub fn generate_database(
+    topology_name: &str,
+    output_fname: &str,
     step: i32,
 ) -> std::io::Result<()> {
+    let topology = Topology::from_string(topology_name);
     let database = if step == 1 {
-        enumerate_step_1(topology)
+        enumerate_step_1(&topology)
     } else {
-        enumerate_step_2(topology)
+        enumerate_step_2(&topology)
     };
     let all_operators = topology.get_all_operators();
     let mut file = File::create(output_fname)?;
@@ -195,10 +200,75 @@ pub fn generate_full_database(
                 topology.nvertices
             )
             .iter()
-            .map(|(a, b)| format!("({a},{b})"))
+            .map(|(a, b)| format!("{a}-{b}"))
             .collect::<Vec<String>>()
-            .join("")
+            .join("|")
         )?;
     }
     return Result::Ok(());
+}
+
+/// Loads a database out of a file name
+#[pyfunction]
+pub fn load_database(fname: &str) -> HashMap<u64, Vec<(usize, usize)>> {
+    let file = File::open(fname).unwrap();
+    let lines = BufReader::new(file).lines();
+    let mut database = HashMap::new();
+    for line in lines {
+        if let Result::Ok(line) = line {
+            let mut line = line.split(',');
+            let repr = line.next().unwrap().parse::<u64>().unwrap();
+            if let Some(cnots) = line.next() {
+                if cnots.len() > 1 {
+                    let cnots: Vec<(usize, usize)> = cnots
+                        .split('|')
+                        .map(|s| {
+                            let mut blob = s.split('-');
+                            let a = blob.next().unwrap().parse::<usize>().unwrap();
+                            let b = blob.next().unwrap().parse::<usize>().unwrap();
+                            (a, b)
+                        })
+                        .collect();
+                    database.insert(repr, cnots);
+                } else {
+                    database.insert(repr, Vec::new());
+                }
+            } else {
+                database.insert(repr, Vec::new());
+            }
+        }
+    }
+    return database;
+}
+
+#[pyfunction]
+/// The matrix is assumed to be in col major
+pub fn get_circuit_from_matrix(
+    matrix: Vec<u8>,
+    database: HashMap<u64, Vec<(usize, usize)>>,
+    step: i32,
+) -> Vec<(usize, usize)> {
+    let n = if step == 2 {
+        (matrix.len() as f32).sqrt() as usize
+    } else {
+        2 * ((matrix.len() / 2) as f64).sqrt() as usize
+    };
+    let m = if step == 2 { n } else { n / 2 };
+    let mut mat = MatrixF2::zero(&n, &n);
+    for i in 0..n {
+        for j in 0..m {
+            if matrix[j * n + i] == 1 {
+                mat.set(i, j);
+            }
+        }
+    }
+    return database[&mat.cannonical_representation()].clone();
+}
+
+#[pymodule]
+fn block_kutin(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(generate_database))?;
+    m.add_wrapped(wrap_pyfunction!(load_database))?;
+    m.add_wrapped(wrap_pyfunction!(get_circuit_from_matrix))?;
+    Ok(())
 }

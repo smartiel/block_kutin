@@ -1,25 +1,7 @@
 extern crate clap;
 
 use clap::{command, Arg};
-use kutin_enumeration_rust::enumeration::generate_full_database;
-use kutin_enumeration_rust::operators::Topology;
-// use std::collections::HashMap;
-
-// fn display_depth_distribution(database: &HashMap<u64, Vec<u64>>) {
-//     let mut counts: HashMap<usize, usize> = HashMap::new();
-//     let mut mdepth = 0;
-//     for (key, hist) in database.iter() {
-//         *counts.entry(hist.len()).or_insert(0) += 1;
-//         if hist.len() > mdepth {
-//             mdepth = hist.len();
-//         }
-//     }
-//     for i in 0..(mdepth + 1) {
-//         if counts.contains_key(&i) {
-//             println!("{i}: {}", counts[&i]);
-//         }
-//     }
-// }
+use kutin_enumeration_rust::enumeration::generate_database;
 
 fn main() {
     let args = command!()
@@ -44,10 +26,10 @@ fn main() {
     let topology_name = args
         .get_one::<String>("TOPOLOGY")
         .expect("This should never fail :)");
-    let topology = Topology::from_string(&topology_name);
-    generate_full_database(
-        &topology,
-        &args.get_one("OUTPUT_FILE").unwrap(),
+    let file_name: &str = (*args.get_one::<&str>("OUTPUT_FILE").unwrap()).clone();
+    generate_database(
+        &topology_name,
+        file_name,
         (*args.get_one::<String>("STEP").unwrap())
             .parse::<i32>()
             .unwrap(),

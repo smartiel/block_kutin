@@ -22,7 +22,6 @@ fn _powerset<T>(s: &[T]) -> Vec<Vec<&T>> {
         })
         .collect()
 }
-
 pub struct Topology {
     pub nvertices: usize,
     pub block_size: usize,

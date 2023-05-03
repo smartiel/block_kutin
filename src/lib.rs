@@ -1,3 +1,3 @@
 pub mod enumeration;
 pub mod matrix;
-pub mod operators;
+pub mod topology;
