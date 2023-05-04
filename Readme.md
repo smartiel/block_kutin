@@ -62,4 +62,32 @@ print(circuit)
 
 ### Full synthesis algorithm
 
-TODO
+The synthesis algorithm can be called as follows:
+```python
+from block_kutin import synthesis
+import numpy as np
+from block_kutin import synthesis, depth, upper_bound_depth
+
+topology = "ladder_3"
+block_size = 3
+n = 15  # must be a multiple of block_size
+
+# generating a random operator
+operator = np.eye(n, dtype=np.byte)
+for _ in range(100):
+    i, j = np.random.choice(list(range(n)), size=2, replace=False)
+    operator[i] ^= operator[j]
+
+circuit = synthesis(operator, block_size, topology)
+print(
+    "cnot depth:",
+    depth(circuit),
+    "| upper bound:",
+    upper_bound_depth(n, topology, block_size),
+)
+```
+
+In this code:
+- `synthesis` performs the synthesis and returns a list of pairs (control, target)
+- `depth` is a helper function that computes the depth of the resulting circuit if needed
+- `upper_bound_depth` computes the depth upper bound as derived in the paper
