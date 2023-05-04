@@ -1,4 +1,3 @@
-from block_kutin import synthesis
 import numpy as np
 from block_kutin import synthesis, depth, upper_bound_depth
 
