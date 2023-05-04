@@ -7,7 +7,7 @@ This repository contains an implementation of the code presented in [this work](
 Start by cloning the repository:
 
 ```bash
-git clone .....
+git clone https://github.com/smartiel/block_kutin.git
 ```
 
 Everything is handled by pip:
