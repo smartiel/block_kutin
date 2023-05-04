@@ -19,7 +19,7 @@ class Database:
     def __init__(self, topology_name, database_folder="~/.database"):
         self.topology_name = topology_name
         self.folder = os.path.expanduser(database_folder)
-        self.databases = [self._load_db(1), self._load_db(2)]
+        self.databases = [*map(self._load_db, range(1, 4))]
 
     def _load_db(self, step):
         """
@@ -44,14 +44,16 @@ class Database:
           where k is the block size
         - for step 2 operators: the matrix is expected to be full rank, to have shape (2k, 2k)
           where k is the block size, and to have only 0s in its bottom right k x k block.
+        - for step 3 operators: the matrix is expected to be full rank, to have shape (k, k)
+          where k is the block size
 
         Argument:
             matrix (np.ndarray): a numpy array representing the operator
-            step (optional, int): the step (either 1 or 2, see paper for more details)
+            step (optional, int): the step (either 1, 2, or 3, see paper for more details)
 
         Returns:
             list: a list of pairs (control, target) describing the CNOT implementation
         """
         return get_circuit_from_matrix(
-            matrix.T.flatten(), self.databases[step == 2], step
+            matrix.T.flatten(), self.databases[step - 1], step
         )

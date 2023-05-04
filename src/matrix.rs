@@ -1,5 +1,6 @@
 // Masks for row and column operations
 use std::fmt;
+const COL_MASK_2: [u64; 2] = [3, 12];
 const COL_MASK_4: [u64; 4] = [15, 240, 3840, 61440];
 const COL_MASK_6: [u64; 6] = [63, 4032, 258048, 16515072, 1056964608, 67645734912];
 const COL_MASK_8: [u64; 8] = [
@@ -12,6 +13,7 @@ const COL_MASK_8: [u64; 8] = [
     71776119061217280,
     18374686479671623680,
 ];
+const ROW_MASK_2: [u64; 2] = [5, 10];
 const ROW_MASK_4: [u64; 4] = [4369, 8738, 17476, 34952];
 const ROW_MASK_6: [u64; 6] = [
     1090785345,
@@ -64,8 +66,8 @@ impl<'a> MatrixF2<'a> {
     }
     /// Construct a fresh identity matrix
     pub fn identity(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
-        assert!([4, 6, 8].contains(n));
-        assert!([4, 6, 8].contains(m));
+        assert!([2, 4, 6, 8].contains(n));
+        assert!([2, 4, 6, 8].contains(m));
         let mut data: u64 = 0;
         for i in 0..std::cmp::min(*n, *m) {
             data |= 1 << (i * n + i);
@@ -74,20 +76,30 @@ impl<'a> MatrixF2<'a> {
     }
     /// Construct a fresh identity matrix
     pub fn identity_half(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
-        assert!([4, 6, 8].contains(n));
-        assert!([4, 6, 8].contains(m));
+        assert!([2, 4, 6, 8].contains(n));
+        assert!([2, 4, 6, 8].contains(m));
         let mut data: u64 = 0;
         for i in 0..(std::cmp::min(*n, *m) / 2) {
             data |= 1 << (i * n + i);
         }
         return Self { n, m, data };
     }
-
+    /// Build an all-0 matrix
     pub fn zero(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
+        assert!([2, 4, 6, 8].contains(n));
+        assert!([2, 4, 6, 8].contains(m));
         return Self { n, m, data: 0 };
     }
+    /// Performs a row operation
     pub fn row_op(&mut self, i: usize, j: usize) {
         match self.n {
+            2 => {
+                if i < j {
+                    self.data ^= (self.data & ROW_MASK_2[i]) << (j - i);
+                } else {
+                    self.data ^= (self.data & ROW_MASK_2[i]) >> (i - j);
+                }
+            }
             4 => {
                 if i < j {
                     self.data ^= (self.data & ROW_MASK_4[i]) << (j - i);
@@ -112,9 +124,16 @@ impl<'a> MatrixF2<'a> {
             _ => panic!(),
         }
     }
-
+    /// Performs a column operation
     pub fn col_op(&mut self, i: usize, j: usize) {
         match self.m {
+            2 => {
+                if i < j {
+                    self.data ^= (self.data & COL_MASK_2[i]) << (self.n * (j - i));
+                } else {
+                    self.data ^= (self.data & COL_MASK_2[i]) >> (self.n * (i - j));
+                }
+            }
             4 => {
                 if i < j {
                     self.data ^= (self.data & COL_MASK_4[i]) << (self.n * (j - i));
@@ -182,6 +201,11 @@ impl<'a> MatrixF2<'a> {
     /// This might modify the matrix.
     pub fn cannonical_representation_step1(&mut self) -> u64 {
         self.half_column_echelon_form();
+        return self.data;
+    }
+    /// Computes a cannonical representation of the matrix as a u64 (for step 3)
+    /// In that case the representant is trivial (we return the matrix data)
+    pub fn cannonical_representation_step3(&self) -> u64 {
         return self.data;
     }
 

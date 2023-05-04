@@ -1,7 +1,8 @@
+extern crate block_kutin;
 extern crate clap;
 
+use block_kutin::enumeration::generate_database;
 use clap::{command, Arg};
-use kutin_enumeration_rust::enumeration::generate_database;
 
 fn main() {
     let args = command!()

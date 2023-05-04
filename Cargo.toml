@@ -2,8 +2,7 @@
 name = "block_kutin"
 version = "0.1.0"
 
-
 [dependencies]
 itertools = "0.10.5"
 clap = { version = "4.2.4", features = ["derive", "cargo"] }
-pyo3 = { version = "0.18.2", features = ["extension-module"] }
+pyo3 = "0.18.3"

@@ -2,8 +2,8 @@ from setuptools import setup
 from setuptools_rust import Binding, RustExtension
 
 setup(
-    name="block-kutin-rust",
-    version="1.0",
+    name="block-kutin",
+    version="0.1.0",
     author="Simon Martiel and Timothée Goubault de Brugière",
     rust_extensions=[RustExtension("block_kutin.block_kutin", binding=Binding.PyO3)],
     packages=["block_kutin"],

@@ -1,3 +1,4 @@
+extern crate itertools;
 use itertools::Itertools;
 use std::collections::HashSet;
 
@@ -249,6 +250,19 @@ impl Topology {
                 ],
             },
             _ => panic!("Unknown topology!"),
+        }
+    }
+    /// Returns the subgraph induced by a single block in the topology
+    pub fn get_block_topology(&self) -> Self {
+        Self {
+            nvertices: self.nvertices / 2,
+            block_size: self.block_size,
+            edges: self
+                .edges
+                .iter()
+                .filter(|(a, b)| (*a < self.nvertices / 2) & (*b < self.nvertices / 2))
+                .map(|a| *a)
+                .collect(),
         }
     }
 }

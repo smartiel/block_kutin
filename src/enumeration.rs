@@ -120,7 +120,7 @@ pub fn enumerate_step_1(topology: &Topology) -> HashMap<u64, Vec<u64>> {
     let mut initial = MatrixF2::identity_half(&topology.nvertices, &topology.nvertices);
     let mut depth = 0;
     global_database.insert(initial.cannonical_representation_step1(), (0, 0));
-    target_database.insert(initial.cannonical_representation(), Vec::new());
+    target_database.insert(initial.cannonical_representation_step1(), Vec::new());
     let mut queue: Vec<(MatrixF2, u64)> = vec![(initial, 0)];
     loop {
         depth += 1;
@@ -133,6 +133,41 @@ pub fn enumerate_step_1(topology: &Topology) -> HashMap<u64, Vec<u64>> {
             for operator in all_operators.iter() {
                 matrix.apply_operator(operator);
                 let repr = matrix.cannonical_representation_step1();
+                if !global_database.contains_key(&repr) {
+                    global_database.insert(repr, (depth, new_parent));
+                    new_queue.push((matrix.clone(), new_parent));
+                    let genealogy = reconstruct_genealogy(&global_database, &repr);
+                    target_database.insert(repr, genealogy);
+                }
+                matrix.apply_operator(operator);
+            }
+        }
+        queue = new_queue;
+    }
+    return target_database;
+}
+
+pub fn enumerate_step_3(topology: &Topology) -> HashMap<u64, Vec<u64>> {
+    let topology = topology.get_block_topology();
+    let all_operators = topology.get_all_operators();
+    let mut global_database: HashMap<u64, (i32, u64)> = HashMap::new();
+    let mut target_database: HashMap<u64, Vec<u64>> = HashMap::new();
+    let initial = MatrixF2::identity(&topology.nvertices, &topology.nvertices);
+    let mut depth = 0;
+    global_database.insert(initial.cannonical_representation_step3(), (0, 0));
+    target_database.insert(initial.cannonical_representation_step3(), Vec::new());
+    let mut queue: Vec<(MatrixF2, u64)> = vec![(initial, 0)];
+    loop {
+        depth += 1;
+        if queue.is_empty() {
+            break;
+        }
+        let mut new_queue: Vec<(MatrixF2, u64)> = Vec::new();
+        for (mut matrix, _) in queue.drain(..) {
+            let new_parent = matrix.cannonical_representation_step3();
+            for operator in all_operators.iter() {
+                matrix.apply_operator(operator);
+                let repr = matrix.cannonical_representation_step3();
                 if !global_database.contains_key(&repr) {
                     global_database.insert(repr, (depth, new_parent));
                     new_queue.push((matrix.clone(), new_parent));
@@ -172,7 +207,31 @@ pub fn generate_full_database_step_2(
     return Result::Ok(());
 }
 
-/// Generates the step1 database for a given topology and dumps the resulting database in some file
+pub fn generate_full_database_step_3(
+    topology: &Topology,
+    output_fname: &str,
+) -> std::io::Result<()> {
+    let database = enumerate_step_3(topology);
+    let all_operators = topology.get_block_topology().get_all_operators();
+    let mut file = File::create(output_fname)?;
+    for repr in database.keys() {
+        writeln!(
+            file,
+            "{} {:?}",
+            repr,
+            get_circuit_from_repr(
+                &database,
+                &all_operators,
+                repr,
+                topology.nvertices / 2,
+                topology.nvertices / 2
+            )
+        )?;
+    }
+    return Result::Ok(());
+}
+
+/// Generates any database for a given topology and dumps the resulting database in some file
 #[pyfunction]
 pub fn generate_database(
     topology_name: &str,
@@ -180,12 +239,17 @@ pub fn generate_database(
     step: i32,
 ) -> std::io::Result<()> {
     let topology = Topology::from_string(topology_name);
-    let database = if step == 1 {
-        enumerate_step_1(&topology)
-    } else {
-        enumerate_step_2(&topology)
+    let database = match step {
+        1 => enumerate_step_1(&topology),
+        2 => enumerate_step_2(&topology),
+        3 => enumerate_step_3(&topology),
+        _ => panic!("There is not step {}", step),
     };
-    let all_operators = topology.get_all_operators();
+    let all_operators = if step < 3 {
+        topology.get_all_operators()
+    } else {
+        topology.get_block_topology().get_all_operators()
+    };
     let mut file = File::create(output_fname)?;
     for repr in database.keys() {
         writeln!(
@@ -196,8 +260,16 @@ pub fn generate_database(
                 &database,
                 &all_operators,
                 repr,
-                topology.nvertices,
-                topology.nvertices
+                if step < 3 {
+                    topology.nvertices
+                } else {
+                    topology.nvertices / 2
+                },
+                if step < 3 {
+                    topology.nvertices
+                } else {
+                    topology.nvertices / 2
+                },
             )
             .iter()
             .map(|(a, b)| format!("{a}-{b}"))
@@ -248,12 +320,12 @@ pub fn get_circuit_from_matrix(
     database: HashMap<u64, Vec<(usize, usize)>>,
     step: i32,
 ) -> Vec<(usize, usize)> {
-    let n = if step == 2 {
+    let n = if step > 1 {
         (matrix.len() as f32).sqrt() as usize
     } else {
         2 * ((matrix.len() / 2) as f64).sqrt() as usize
     };
-    let m = if step == 2 { n } else { n / 2 };
+    let m = if step > 1 { n } else { n / 2 };
     let mut mat = MatrixF2::zero(&n, &n);
     for i in 0..n {
         for j in 0..m {
@@ -267,8 +339,8 @@ pub fn get_circuit_from_matrix(
 
 #[pymodule]
 fn block_kutin(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(generate_database))?;
-    m.add_wrapped(wrap_pyfunction!(load_database))?;
-    m.add_wrapped(wrap_pyfunction!(get_circuit_from_matrix))?;
+    m.add_wrapped(wrap_pyfunction!(enumeration::generate_database))?;
+    m.add_wrapped(wrap_pyfunction!(enumeration::load_database))?;
+    m.add_wrapped(wrap_pyfunction!(enumeration::get_circuit_from_matrix))?;
     Ok(())
 }
