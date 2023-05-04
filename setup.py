@@ -9,4 +9,5 @@ setup(
     packages=["block_kutin"],
     # rust extensions are not zip safe, just like C-extensions.
     zip_safe=False,
+    install_requires=["networkx"],
 )
