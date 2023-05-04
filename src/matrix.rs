@@ -1,6 +1,7 @@
 // Masks for row and column operations
 use std::fmt;
 const COL_MASK_2: [u64; 2] = [3, 12];
+const COL_MASK_3: [u64; 3] = [7, 56, 448];
 const COL_MASK_4: [u64; 4] = [15, 240, 3840, 61440];
 const COL_MASK_6: [u64; 6] = [63, 4032, 258048, 16515072, 1056964608, 67645734912];
 const COL_MASK_8: [u64; 8] = [
@@ -14,6 +15,7 @@ const COL_MASK_8: [u64; 8] = [
     18374686479671623680,
 ];
 const ROW_MASK_2: [u64; 2] = [5, 10];
+const ROW_MASK_3: [u64; 3] = [73, 146, 292];
 const ROW_MASK_4: [u64; 4] = [4369, 8738, 17476, 34952];
 const ROW_MASK_6: [u64; 6] = [
     1090785345,
@@ -66,8 +68,8 @@ impl<'a> MatrixF2<'a> {
     }
     /// Construct a fresh identity matrix
     pub fn identity(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
-        assert!([2, 4, 6, 8].contains(n));
-        assert!([2, 4, 6, 8].contains(m));
+        assert!([2, 3, 4, 6, 8].contains(n));
+        assert!([2, 3, 4, 6, 8].contains(m));
         let mut data: u64 = 0;
         for i in 0..std::cmp::min(*n, *m) {
             data |= 1 << (i * n + i);
@@ -76,8 +78,8 @@ impl<'a> MatrixF2<'a> {
     }
     /// Construct a fresh identity matrix
     pub fn identity_half(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
-        assert!([2, 4, 6, 8].contains(n));
-        assert!([2, 4, 6, 8].contains(m));
+        assert!([2, 3, 4, 6, 8].contains(n));
+        assert!([2, 3, 4, 6, 8].contains(m));
         let mut data: u64 = 0;
         for i in 0..(std::cmp::min(*n, *m) / 2) {
             data |= 1 << (i * n + i);
@@ -86,8 +88,8 @@ impl<'a> MatrixF2<'a> {
     }
     /// Build an all-0 matrix
     pub fn zero(n: &'a usize, m: &'a usize) -> MatrixF2<'a> {
-        assert!([2, 4, 6, 8].contains(n));
-        assert!([2, 4, 6, 8].contains(m));
+        assert!([2, 3, 4, 6, 8].contains(n));
+        assert!([2, 3, 4, 6, 8].contains(m));
         return Self { n, m, data: 0 };
     }
     /// Performs a row operation
@@ -98,6 +100,13 @@ impl<'a> MatrixF2<'a> {
                     self.data ^= (self.data & ROW_MASK_2[i]) << (j - i);
                 } else {
                     self.data ^= (self.data & ROW_MASK_2[i]) >> (i - j);
+                }
+            }
+            3 => {
+                if i < j {
+                    self.data ^= (self.data & ROW_MASK_3[i]) << (j - i);
+                } else {
+                    self.data ^= (self.data & ROW_MASK_3[i]) >> (i - j);
                 }
             }
             4 => {
@@ -132,6 +141,13 @@ impl<'a> MatrixF2<'a> {
                     self.data ^= (self.data & COL_MASK_2[i]) << (self.n * (j - i));
                 } else {
                     self.data ^= (self.data & COL_MASK_2[i]) >> (self.n * (i - j));
+                }
+            }
+            3 => {
+                if i < j {
+                    self.data ^= (self.data & COL_MASK_3[i]) << (self.n * (j - i));
+                } else {
+                    self.data ^= (self.data & COL_MASK_3[i]) >> (self.n * (i - j));
                 }
             }
             4 => {
